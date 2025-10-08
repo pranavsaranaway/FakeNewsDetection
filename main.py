@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
 import itertools
+import matplotlib.pyplot as plt
+import os 
+import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import PassiveAggressiveClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, ConfusionMatrixDisplay
 
 # Load the dataset
 df = pd.read_csv('dataset/news.csv')
@@ -34,5 +37,34 @@ y_pred = pac.predict(tfidf_test)
 score = accuracy_score(y_test, y_pred)
 print (f'Accuracy: {round(score*100,2)}%')
 
-# Build confusion matrix
-print(confusion_matrix(y_test, y_pred, labels=['FAKE', 'REAL']))
+# Evaluation
+disp = ConfusionMatrixDisplay.from_estimator(
+    pac, tfidf_test, y_test,
+    display_labels=['FAKE', 'REAL'],
+    cmap='Blues',
+    values_format='d'
+)
+
+# ensure a folder exists for saving
+os.makedirs("plots", exist_ok=True)
+
+# save plot to the folder
+plt.savefig("plots/confusion_matrix.png", dpi=300, bbox_inches='tight')
+
+print(classification_report(y_test, y_pred, labels=['FAKE', 'REAL']))
+
+feature_names = np.array(tfidf_vectorizer.get_feature_names_out())
+coefs = pac.coef_[0]
+
+top_fake = np.argsort(coefs)[-15:]  # highest positive weights
+top_real = np.argsort(coefs)[:15]   # lowest negative weights
+
+plt.figure(figsize=(10,6))
+plt.barh(feature_names[top_fake], coefs[top_fake], color='red')
+plt.title("Top Words Associated with 'FAKE'")
+plt.savefig("plots/FAKE_association.png", dpi=300, bbox_inches='tight')
+
+plt.figure(figsize=(10,6))
+plt.barh(feature_names[top_real], coefs[top_real], color='green')
+plt.title("Top Words Associated with 'REAL'")
+plt.savefig("plots/REAL_association.png", dpi=300, bbox_inches='tight')
